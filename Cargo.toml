@@ -2,7 +2,9 @@
 name = "computer-use-indicator"
 version = "0.1.0"
 edition = "2024"
-license = "GPL-3.0"
+license = "MIT"
+description = "On-screen indicator for AI agents driving a Linux desktop through computer use"
+repository = "https://github.com/netherguy4/computer-use-indicator"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

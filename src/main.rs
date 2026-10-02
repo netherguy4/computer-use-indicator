@@ -179,6 +179,18 @@ fn socket_sub() -> Subscription<Msg> {
     })
 }
 
+fn using_computer(agent: &str) -> String {
+    let russian = ["LC_ALL", "LC_MESSAGES", "LANG"]
+        .iter()
+        .find_map(|v| std::env::var(v).ok().filter(|l| !l.is_empty()))
+        .is_some_and(|l| l.starts_with("ru"));
+    if russian {
+        format!("{agent} использует компьютер")
+    } else {
+        format!("{agent} is using your computer")
+    }
+}
+
 fn agent_color(agent: &str) -> Color {
     match agent.to_lowercase().as_str() {
         "claude" => Color::from_rgb8(0xE0, 0x8A, 0x67),
@@ -442,7 +454,7 @@ impl App {
         let white = |a: f32| cosmic::theme::Text::Color(Color { a: a * alpha, ..Color::WHITE });
         let content = row![
             dot,
-            text(format!("{} использует компьютер", self.agent))
+            text(using_computer(&self.agent))
                 .size(14)
                 .font(cosmic::font::semibold())
                 .class(white(0.95)),

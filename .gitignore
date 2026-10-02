@@ -1,1 +1,5 @@
 /target
+# Personal build setup (podman container, mise toolchain)
+/LOCAL.md
+/local-cargo
+/mise.toml

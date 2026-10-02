@@ -19,28 +19,38 @@ SOCK = os.path.join(
     os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"),
     "computer-use-indicator.sock",
 )
+HIDE_TEXT = os.environ.get("COMPUTER_USE_INDICATOR_HIDE_TEXT") == "1"
+RUSSIAN = next(
+    (os.environ[v] for v in ("LC_ALL", "LC_MESSAGES", "LANG") if os.environ.get(v)), ""
+).startswith("ru")
 # Screen captures must not contain the overlay, so these hide it first and
 # are announced only once the server has answered.
-OBSERVE = {"screenshot": "смотрит экран", "get_app_state": "смотрит экран"}
+OBSERVE = {"screenshot", "get_app_state"}
 ACT = {
-    "click": "клик",
-    "drag": "перетаскивание",
-    "scroll": "прокрутка",
-    "type_text": "ввод текста",
-    "press_key": "клавиша",
-    "set_value": "ввод значения",
-    "perform_action": "действие",
-    "activate_window": "переключение окна",
-    "move_window": "перемещение окна",
-    "resize_window": "размер окна",
+    "click", "drag", "scroll", "type_text", "press_key", "set_value",
+    "perform_action", "activate_window", "move_window", "resize_window",
+}
+LABELS = {
+    "screenshot": ("looking at the screen", "смотрит экран"),
+    "get_app_state": ("looking at the screen", "смотрит экран"),
+    "click": ("click", "клик"),
+    "drag": ("drag", "перетаскивание"),
+    "scroll": ("scroll", "прокрутка"),
+    "type_text": ("typing", "ввод текста"),
+    "press_key": ("key press", "клавиша"),
+    "set_value": ("entering a value", "ввод значения"),
+    "perform_action": ("action", "действие"),
+    "activate_window": ("switching window", "переключение окна"),
+    "move_window": ("moving window", "перемещение окна"),
+    "resize_window": ("resizing window", "размер окна"),
 }
 SHOWN_FOR = 9.0  # overlay IDLE_BEFORE_FADE plus its fade-out
 GLIDE = 0.45  # overlay MAX_GLIDE plus a frame: the cursor lands before the click
 
 
-def label(name, args):
-    text = ACT.get(name) or OBSERVE.get(name) or name
-    return text
+def label(name):
+    en, ru = LABELS.get(name, (name, name))
+    return ru if RUSSIAN else en
 
 
 class Indicator:
@@ -57,7 +67,7 @@ class Indicator:
             return False  # overlay not running; the proxy must never break the session
 
     def show(self, name, args):
-        event = {"agent": self.agent, "tool": name, "label": label(name, args)}
+        event = {"agent": self.agent, "tool": name, "label": label(name)}
         x, y = args.get("x"), args.get("y")
         # Window-relative coordinates cannot be placed on the desktop.
         if not args.get("relative") and isinstance(x, (int, float)) and isinstance(y, (int, float)):
@@ -66,7 +76,8 @@ class Indicator:
             event["keys"] = [k for k in args["key"].split("+") if k]
         typed = args.get("text") if name == "type_text" else args.get("value") if name == "set_value" else None
         if isinstance(typed, str):
-            event["text"] = typed[-64:]  # a datagram, not a transcript
+            typed = typed[-64:]  # a datagram, not a transcript
+            event["text"] = "•" * len(typed) if HIDE_TEXT else typed
         if self.send(event):
             self.shown_at = time.monotonic()
             if "x" in event:
