@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+project_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+toolchain_dir=$(env -u APPIMAGE -u APPDIR -u LD_LIBRARY_PATH mise exec -- rustc --print sysroot)
+target_dir="$HOME/.cache/computer-use-indicator-target"
+mkdir -p "$target_dir"
+exec env -u APPIMAGE -u APPDIR -u LD_LIBRARY_PATH podman run --rm \
+  --userns=keep-id --security-opt label=disable \
+  -v "$project_dir:/work" -v "$HOME/.cargo:/cargo" -v "$toolchain_dir:/toolchain:ro" \
+  -v "$target_dir:/target" -w /work -e HOME=/tmp -e CARGO_HOME=/cargo \
+  -e PATH=/toolchain/bin:/usr/bin:/bin -e CARGO_TARGET_DIR=/target \
+  -e CARGO_BUILD_JOBS=3 -e CARGO_PROFILE_RELEASE_DEBUG=0 \
+  -e CARGO_PROFILE_RELEASE_STRIP=debuginfo \
+  localhost/cosmic-comp-build:44 cargo "$@"
