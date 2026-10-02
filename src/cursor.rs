@@ -1,7 +1,7 @@
-//! Procedural software cursor modelled on the Codex runtime capture: a dark,
-//! white-rimmed rounded arrowhead with a soft shadow inside a faint white fog.
+//! Procedural software cursor modelled on the Codex runtime capture: a
+//! white-rimmed rounded arrowhead with a soft shadow inside a fog, tinted per agent.
 
-use cosmic::iced::widget::image::Handle;
+use cosmic::iced::{Color, widget::image::Handle};
 
 /// Logical size of the square sprite; the arrow tip sits at its centre.
 pub const SIZE: f32 = 112.0;
@@ -48,7 +48,11 @@ fn over(dst: [f32; 4], rgb: [f32; 3], a: f32) -> [f32; 4] {
     ]
 }
 
-pub fn sprite() -> Handle {
+/// Fog and arrow body take the agent's colour; the rim stays white.
+pub fn sprite(tint: Color) -> Handle {
+    let mix = |a: f32, b: f32, t: f32| a + (b - a) * t;
+    let fog_rgb = [mix(tint.r, 1.0, 0.35), mix(tint.g, 1.0, 0.35), mix(tint.b, 1.0, 0.35)];
+    let body_rgb = [tint.r * 0.62, tint.g * 0.62, tint.b * 0.62];
     let px = (SIZE * SCALE) as u32;
     let fog_center = (8.0, 8.5);
     let mut rgba = Vec::with_capacity((px * px * 4) as usize);
@@ -59,8 +63,8 @@ pub fn sprite() -> Handle {
                 (y as f32 + 0.5) / SCALE - SIZE / 2.0,
             );
             let fog_d = (p.0 - fog_center.0).hypot(p.1 - fog_center.1);
-            let fog = 0.30 * (-(fog_d / 17.0).powi(2)).exp() + 0.07 * (-(fog_d / 38.0).powi(2)).exp();
-            let mut c = over([0.0; 4], [1.0, 1.0, 1.0], fog);
+            let fog = 0.36 * (-(fog_d / 17.0).powi(2)).exp() + 0.09 * (-(fog_d / 38.0).powi(2)).exp();
+            let mut c = over([0.0; 4], fog_rgb, fog);
 
             let shadow_d = sd_polygon((p.0, p.1 - 1.4), &ARROW) - CORNER;
             c = over(c, [0.0, 0.0, 0.0], 0.38 * (1.0 - smoothstep(-1.0, 4.5, shadow_d)));
@@ -69,7 +73,7 @@ pub fn sprite() -> Handle {
             let outer = (0.5 - d * SCALE).clamp(0.0, 1.0);
             let inner = (0.5 - (d + RIM) * SCALE).clamp(0.0, 1.0);
             c = over(c, [0.97, 0.97, 0.98], outer);
-            c = over(c, [0.24, 0.24, 0.27], inner);
+            c = over(c, body_rgb, inner);
 
             let a = c[3];
             let straight = |v: f32| if a > 0.0 { (v / a * 255.0).round() as u8 } else { 0 };

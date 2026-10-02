@@ -137,7 +137,8 @@ struct App {
     last_action: Instant,
     shown_at: Instant,
     fading: Option<Instant>,
-    sprite: image::Handle,
+    /// Agent the sprite was tinted for.
+    sprite: (String, image::Handle),
 }
 
 fn socket_path() -> std::path::PathBuf {
@@ -240,6 +241,9 @@ impl App {
     }
 
     fn on_action(&mut self, action: Action) -> Task<Msg> {
+        if self.sprite.0 != action.agent {
+            self.sprite = (action.agent.clone(), cursor::sprite(agent_color(&action.agent)));
+        }
         self.agent = action.agent;
         self.label = action.label;
         self.last_action = Instant::now();
@@ -386,7 +390,7 @@ impl cosmic::Application for App {
             last_action: Instant::now(),
             shown_at: Instant::now(),
             fading: None,
-            sprite: cursor::sprite(),
+            sprite: (String::new(), cursor::sprite(agent_color(""))),
         };
         (app, Task::none())
     }
@@ -469,7 +473,7 @@ impl cosmic::Application for App {
             };
             let pressed = self.pulse.is_some_and(|(at, _)| at.elapsed().as_secs_f32() < 0.12);
             let size = cursor::SIZE * if pressed { 0.88 } else { 1.0 };
-            let sprite = image(self.sprite.clone())
+            let sprite = image(self.sprite.1.clone())
                 .width(size)
                 .height(size)
                 .rotation(Rotation::Floating(Radians(sway)))
