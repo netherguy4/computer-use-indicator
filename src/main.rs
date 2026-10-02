@@ -111,10 +111,17 @@ impl Glide {
         let dist = dx.hypot(dy);
         // A gentle arc, like a hand moving a mouse, rather than a straight slide.
         let bend = 0.16 * dist;
-        let (nx, ny) = if dist > 0.0 { (-dy / dist, dx / dist) } else { (0.0, 0.0) };
+        let (nx, ny) = if dist > 0.0 {
+            (-dy / dist, dx / dist)
+        } else {
+            (0.0, 0.0)
+        };
         Glide {
             from,
-            ctrl: ((from.0 + to.0) / 2.0 + nx * bend, (from.1 + to.1) / 2.0 + ny * bend),
+            ctrl: (
+                (from.0 + to.0) / 2.0 + nx * bend,
+                (from.1 + to.1) / 2.0 + ny * bend,
+            ),
             to,
             start: Instant::now(),
             duration: (0.18 + dist / 4000.0).clamp(0.22, MAX_GLIDE),
@@ -133,7 +140,10 @@ impl Glide {
         let e = spring(t) / spring(1.0);
         let u = 1.0 - e;
         let p = |a: f32, c: f32, b: f32| u * u * a + 2.0 * u * e * c + e * e * b;
-        (p(self.from.0, self.ctrl.0, self.to.0), p(self.from.1, self.ctrl.1, self.to.1))
+        (
+            p(self.from.0, self.ctrl.0, self.to.0),
+            p(self.from.1, self.ctrl.1, self.to.1),
+        )
     }
 }
 
@@ -170,7 +180,9 @@ fn socket_sub() -> Subscription<Msg> {
             let sock = tokio::net::UnixDatagram::bind(&path).expect("bind indicator socket");
             let mut buf = vec![0u8; 4096];
             loop {
-                let Ok(n) = sock.recv(&mut buf).await else { continue };
+                let Ok(n) = sock.recv(&mut buf).await else {
+                    continue;
+                };
                 if let Ok(action) = serde_json::from_slice::<Action>(&buf[..n]) {
                     let _ = tx.send(Msg::Action(action)).await;
                 }
@@ -268,12 +280,19 @@ impl App {
         self.pulse = None;
         self.keyboard = None;
         self.fading = None;
-        Task::batch(self.surfaces.drain().map(|(id, _)| destroy_layer_surface(id)))
+        Task::batch(
+            self.surfaces
+                .drain()
+                .map(|(id, _)| destroy_layer_surface(id)),
+        )
     }
 
     fn on_action(&mut self, action: Action) -> Task<Msg> {
         if self.sprite.0 != action.agent {
-            self.sprite = (action.agent.clone(), cursor::sprite(agent_color(&action.agent)));
+            self.sprite = (
+                action.agent.clone(),
+                cursor::sprite(agent_color(&action.agent)),
+            );
         }
         self.agent = action.agent;
         self.label = action.label;
@@ -302,10 +321,17 @@ impl App {
             self.cursor = Some(glide.to);
             self.glide = None;
         }
-        if self.pulse.is_some_and(|(at, _)| at.elapsed().as_secs_f32() > PULSE) {
+        if self
+            .pulse
+            .is_some_and(|(at, _)| at.elapsed().as_secs_f32() > PULSE)
+        {
             self.pulse = None;
         }
-        if self.keyboard.as_ref().is_some_and(|(at, _)| at.elapsed().as_secs_f32() > KEYS_SHOWN) {
+        if self
+            .keyboard
+            .as_ref()
+            .is_some_and(|(at, _)| at.elapsed().as_secs_f32() > KEYS_SHOWN)
+        {
             self.keyboard = None;
         }
         match self.fading {
@@ -357,7 +383,12 @@ impl App {
         let (at, keyboard) = self.keyboard.as_ref()?;
         let age = at.elapsed().as_secs_f32();
         let alpha = alpha * (age / 0.12).min(1.0) * ((KEYS_SHOWN - age) / 0.3).clamp(0.0, 1.0);
-        let white = move |a: f32| cosmic::theme::Text::Color(Color { a: a * alpha, ..Color::WHITE });
+        let white = move |a: f32| {
+            cosmic::theme::Text::Color(Color {
+                a: a * alpha,
+                ..Color::WHITE
+            })
+        };
 
         let content: Element<'_, Msg> = match keyboard {
             Keyboard::Keys(keys) => {
@@ -367,7 +398,10 @@ impl App {
                         caps = caps.push(text("+").size(12).class(white(0.5)));
                     }
                     let cap = container(
-                        text(key.clone()).size(13).font(cosmic::font::semibold()).class(white(0.95)),
+                        text(key.clone())
+                            .size(13)
+                            .font(cosmic::font::semibold())
+                            .class(white(0.95)),
                     )
                     .padding([3, 9])
                     .style(move |_| container::Style {
@@ -393,13 +427,16 @@ impl App {
                     Some((i, _)) => format!("…{}", &typed[i..]),
                     None => typed.clone(),
                 };
-                let blink = if (age * 2.5) as u32 % 2 == 0 { 1.0 } else { 0.0 };
-                let caret = container(Space::new().width(2).height(15)).style(move |_| {
-                    container::Style {
+                let blink = if ((age * 2.5) as u32).is_multiple_of(2) {
+                    1.0
+                } else {
+                    0.0
+                };
+                let caret =
+                    container(Space::new().width(2).height(15)).style(move |_| container::Style {
                         background: Some(with_alpha(color, blink * alpha).into()),
                         ..Default::default()
-                    }
-                });
+                    });
                 row![
                     text("⌨").size(14).class(white(0.7)),
                     row![text(shown).size(13).class(white(0.95)), caret].align_y(Alignment::Center),
@@ -451,7 +488,12 @@ impl App {
             },
             ..Default::default()
         });
-        let white = |a: f32| cosmic::theme::Text::Color(Color { a: a * alpha, ..Color::WHITE });
+        let white = |a: f32| {
+            cosmic::theme::Text::Color(Color {
+                a: a * alpha,
+                ..Color::WHITE
+            })
+        };
         let content = row![
             dot,
             text(using_computer(&self.agent))
@@ -602,7 +644,9 @@ impl cosmic::Application for App {
             } else {
                 0.0
             };
-            let pressed = self.pulse.is_some_and(|(at, _)| at.elapsed().as_secs_f32() < 0.12);
+            let pressed = self
+                .pulse
+                .is_some_and(|(at, _)| at.elapsed().as_secs_f32() < 0.12);
             let size = cursor::SIZE * if pressed { 0.88 } else { 1.0 };
             let sprite = image(self.sprite.1.clone())
                 .width(size)
@@ -623,16 +667,28 @@ impl cosmic::Application for App {
             None => self.surfaces.get(&id) == self.surfaces.values().min(),
         };
         if pill_here {
-            let mut top = column![self.pill(color, alpha)].spacing(10).align_x(Alignment::Center);
+            let mut top = column![self.pill(color, alpha)]
+                .spacing(10)
+                .align_x(Alignment::Center);
             match (cursor, self.keyboard_bubble(color, alpha)) {
                 // Keystrokes go to the focused field, usually where the cursor last clicked.
                 (Some((cx, cy)), Some(bubble)) => {
-                    layers.push(pin(bubble).x(cx - output.x + 18.0).y(cy - output.y + 24.0).into());
+                    layers.push(
+                        pin(bubble)
+                            .x(cx - output.x + 18.0)
+                            .y(cy - output.y + 24.0)
+                            .into(),
+                    );
                 }
                 (None, Some(bubble)) => top = top.push(bubble),
                 _ => {}
             }
-            layers.push(container(top).center_x(Length::Fill).padding(iced::padding::top(42)).into());
+            layers.push(
+                container(top)
+                    .center_x(Length::Fill)
+                    .padding(iced::padding::top(42))
+                    .into(),
+            );
         }
 
         stack(layers).into()

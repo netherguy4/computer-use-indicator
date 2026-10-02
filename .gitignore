@@ -8,3 +8,4 @@
 /scripts/demo/*.webp
 /scripts/demo/*.log
 /scripts/demo/computer-use-indicator
+/.cui-run

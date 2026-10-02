@@ -51,7 +51,11 @@ fn over(dst: [f32; 4], rgb: [f32; 3], a: f32) -> [f32; 4] {
 /// Fog and arrow body take the agent's colour; the rim stays white.
 pub fn sprite(tint: Color) -> Handle {
     let mix = |a: f32, b: f32, t: f32| a + (b - a) * t;
-    let fog_rgb = [mix(tint.r, 1.0, 0.35), mix(tint.g, 1.0, 0.35), mix(tint.b, 1.0, 0.35)];
+    let fog_rgb = [
+        mix(tint.r, 1.0, 0.35),
+        mix(tint.g, 1.0, 0.35),
+        mix(tint.b, 1.0, 0.35),
+    ];
     let body_rgb = [tint.r * 0.62, tint.g * 0.62, tint.b * 0.62];
     let px = (SIZE * SCALE) as u32;
     let fog_center = (8.0, 8.5);
@@ -65,12 +69,17 @@ pub fn sprite(tint: Color) -> Handle {
             let fog_d = (p.0 - fog_center.0).hypot(p.1 - fog_center.1);
             // The window fades the gaussian tail to zero well inside the sprite,
             // otherwise its square edge shows on dark backgrounds.
-            let fog = (0.36 * (-(fog_d / 17.0).powi(2)).exp() + 0.09 * (-(fog_d / 30.0).powi(2)).exp())
+            let fog = (0.36 * (-(fog_d / 17.0).powi(2)).exp()
+                + 0.09 * (-(fog_d / 30.0).powi(2)).exp())
                 * (1.0 - smoothstep(26.0, 44.0, fog_d));
             let mut c = over([0.0; 4], fog_rgb, fog);
 
             let shadow_d = sd_polygon((p.0, p.1 - 1.4), &ARROW) - CORNER;
-            c = over(c, [0.0, 0.0, 0.0], 0.38 * (1.0 - smoothstep(-1.0, 4.5, shadow_d)));
+            c = over(
+                c,
+                [0.0, 0.0, 0.0],
+                0.38 * (1.0 - smoothstep(-1.0, 4.5, shadow_d)),
+            );
 
             let d = sd_polygon(p, &ARROW) - CORNER;
             let outer = (0.5 - d * SCALE).clamp(0.0, 1.0);
@@ -79,8 +88,19 @@ pub fn sprite(tint: Color) -> Handle {
             c = over(c, body_rgb, inner);
 
             let a = c[3];
-            let straight = |v: f32| if a > 0.0 { (v / a * 255.0).round() as u8 } else { 0 };
-            rgba.extend_from_slice(&[straight(c[0]), straight(c[1]), straight(c[2]), (a * 255.0).round() as u8]);
+            let straight = |v: f32| {
+                if a > 0.0 {
+                    (v / a * 255.0).round() as u8
+                } else {
+                    0
+                }
+            };
+            rgba.extend_from_slice(&[
+                straight(c[0]),
+                straight(c[1]),
+                straight(c[2]),
+                (a * 255.0).round() as u8,
+            ]);
         }
     }
     Handle::from_rgba(px, px, rgba)
@@ -92,9 +112,15 @@ mod tests {
 
     #[test]
     fn fog_vanishes_before_sprite_edge() {
-        let Handle::Rgba { pixels, width, .. } = sprite(Color::WHITE) else { unreachable!() };
-        let edge = (0..width as usize).flat_map(|i| [i * 4, ((width as usize - 1) * width as usize + i) * 4]);
-        assert!(edge.map(|i| pixels[i + 3]).all(|a| a == 0), "edge pixels must be fully transparent");
+        let Handle::Rgba { pixels, width, .. } = sprite(Color::WHITE) else {
+            unreachable!()
+        };
+        let edge = (0..width as usize)
+            .flat_map(|i| [i * 4, ((width as usize - 1) * width as usize + i) * 4]);
+        assert!(
+            edge.map(|i| pixels[i + 3]).all(|a| a == 0),
+            "edge pixels must be fully transparent"
+        );
     }
 
     #[test]
