@@ -1,14 +1,27 @@
+<div align="center">
+
 # computer-use-indicator
 
-See when an AI agent is driving your Linux desktop.
+**See when an AI agent is driving your Linux desktop.**
+
+[![CI](https://github.com/netherguy4/computer-use-indicator/actions/workflows/ci.yml/badge.svg)](https://github.com/netherguy4/computer-use-indicator/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/netherguy4/computer-use-indicator)](https://github.com/netherguy4/computer-use-indicator/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+<img src="docs/demo.webp" alt="Claude clicks the search field, presses Ctrl+F, types &quot;night&quot; and turns on Night light; then Codex takes over in blue" width="100%">
+
+<sub>Claude searches and flips a toggle, then Codex takes over. Recorded on a mock desktop · <a href="docs/demo.mp4">1080p MP4</a></sub>
+
+</div>
 
 When an agent uses [computer-use-linux](https://github.com/agent-sh/computer-use-linux) to click, type or look at the screen, this overlay shows it:
 
-- a software cursor with a soft glow, tinted per agent, that glides along an arc to every click target, ripples on click and settles with a short damped sway;
-- keycaps next to the cursor for key presses (`Ctrl` + `L`) and a typing line with a caret for typed text;
-- a glow along every screen edge and a status pill (`Claude is using your computer · click`) on the screen being used.
-
-Everything is click-through and disappears 8 seconds after the last action. Nothing is drawn, and no surfaces exist, while no agent is acting, so fullscreen games keep direct scanout.
+| | |
+|---|---|
+| 🖱️ **Software cursor** | A glowing arrow tinted per agent glides along an arc to every target, ripples on click and settles with a short damped sway. |
+| ⌨️ **Keyboard** | Keycaps (`Ctrl` + `F`) pop up beside the cursor for key presses; typed text appears with a blinking caret. |
+| 🟠 **Presence** | A soft glow along every screen edge and a pill, *Claude is using your computer · click*, on the screen in use. |
+| 🫥 **Out of the way** | Click-through, hidden from the agent's own screenshots, gone 8 s after the last action. No surfaces exist while idle, so fullscreen games keep direct scanout. |
 
 ## How it works
 
@@ -115,6 +128,8 @@ The proxy uses about 13 MB and no CPU between messages.
 cargo test --locked
 python3 -m unittest discover tests
 ```
+
+The demo is recorded on a mock desktop in headless sway: [scripts/demo](scripts/demo).
 
 Cursor motion research by [open-codex-computer-use](https://github.com/iFurySt/open-codex-computer-use) (MIT) informed the glide and sway.
 

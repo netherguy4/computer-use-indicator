@@ -1,0 +1,2 @@
+FROM registry.fedoraproject.org/fedora:44
+RUN dnf -y install sway swaybg wf-recorder ffmpeg-free mesa-vulkan-drivers mesa-dri-drivers vulkan-loader libxkbcommon open-sans-fonts google-noto-sans-fonts google-noto-sans-mono-fonts ImageMagick python3 imv && dnf clean all
