@@ -16,12 +16,12 @@
 
 When an agent uses [computer-use-linux](https://github.com/agent-sh/computer-use-linux) to click, type or look at the screen, this overlay shows it:
 
-| | |
+| Feature | What you see |
 |---|---|
 | 🖱️ **Software cursor** | A glowing arrow tinted per agent glides along an arc to every target, ripples on click and settles with a short damped sway. |
 | ⌨️ **Keyboard** | Keycaps (`Ctrl` + `F`) pop up beside the cursor for key presses; typed text appears with a blinking caret. |
 | 🟠 **Presence** | A soft glow along every screen edge and a pill, *Claude is using your computer · click*, on the screen in use. |
-| 🫥 **Out of the way** | Click-through, hidden from the agent's own screenshots, gone 8 s after the last action. No surfaces exist while idle, so fullscreen games keep direct scanout. |
+| 👻 **Out of the way** | Click-through, hidden from the agent's own screenshots, gone 8 s after the last action. No surfaces exist while idle, so fullscreen games keep direct scanout. |
 
 ## How it works
 
