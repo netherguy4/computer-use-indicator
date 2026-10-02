@@ -47,6 +47,10 @@ const FADE: f32 = 0.35;
 const MAX_GLIDE: f32 = 0.42;
 const PULSE: f32 = 0.45;
 const EDGE: f32 = 26.0;
+const KEYS_SHOWN: f32 = 2.2;
+/// Idle motion (sway, breathing) dies out this long after an action so a
+/// resting overlay stops redrawing.
+const SETTLE: f32 = 2.0;
 
 #[derive(Debug, Clone, Deserialize)]
 struct Action {
@@ -60,6 +64,15 @@ struct Action {
     label: String,
     x: Option<f32>,
     y: Option<f32>,
+    #[serde(default)]
+    keys: Vec<String>,
+    text: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+enum Keyboard {
+    Keys(Vec<String>),
+    Text(String),
 }
 
 #[derive(Debug, Clone)]
@@ -134,6 +147,7 @@ struct App {
     cursor: Option<(f32, f32)>,
     glide: Option<Glide>,
     pulse: Option<(Instant, (f32, f32))>,
+    keyboard: Option<(Instant, Keyboard)>,
     last_action: Instant,
     shown_at: Instant,
     fading: Option<Instant>,
@@ -197,6 +211,10 @@ impl App {
         }
     }
 
+    fn settling(&self) -> bool {
+        self.last_action.elapsed().as_secs_f32() < SETTLE + MAX_GLIDE
+    }
+
     fn visible(&self) -> bool {
         !self.surfaces.is_empty()
     }
@@ -236,6 +254,7 @@ impl App {
             self.cursor = Some(glide.to);
         }
         self.pulse = None;
+        self.keyboard = None;
         self.fading = None;
         Task::batch(self.surfaces.drain().map(|(id, _)| destroy_layer_surface(id)))
     }
@@ -247,6 +266,11 @@ impl App {
         self.agent = action.agent;
         self.label = action.label;
         self.last_action = Instant::now();
+        self.keyboard = match (action.keys.is_empty(), action.text) {
+            (false, _) => Some((Instant::now(), Keyboard::Keys(action.keys))),
+            (true, Some(text)) => Some((Instant::now(), Keyboard::Text(text))),
+            (true, None) => None,
+        };
         if let (Some(x), Some(y)) = (action.x, action.y) {
             // First appearance glides in from a short distance away.
             let from = self.cursor_position().unwrap_or((x + 90.0, y + 120.0));
@@ -268,6 +292,9 @@ impl App {
         }
         if self.pulse.is_some_and(|(at, _)| at.elapsed().as_secs_f32() > PULSE) {
             self.pulse = None;
+        }
+        if self.keyboard.as_ref().is_some_and(|(at, _)| at.elapsed().as_secs_f32() > KEYS_SHOWN) {
+            self.keyboard = None;
         }
         match self.fading {
             Some(at) if at.elapsed().as_secs_f32() > FADE => self.hide(),
@@ -313,9 +340,92 @@ impl App {
         ]
     }
 
+    /// Keycaps for `press_key`, a typing line with a caret for `type_text`.
+    fn keyboard_bubble(&self, color: Color, alpha: f32) -> Option<Element<'_, Msg>> {
+        let (at, keyboard) = self.keyboard.as_ref()?;
+        let age = at.elapsed().as_secs_f32();
+        let alpha = alpha * (age / 0.12).min(1.0) * ((KEYS_SHOWN - age) / 0.3).clamp(0.0, 1.0);
+        let white = move |a: f32| cosmic::theme::Text::Color(Color { a: a * alpha, ..Color::WHITE });
+
+        let content: Element<'_, Msg> = match keyboard {
+            Keyboard::Keys(keys) => {
+                let mut caps = row![].spacing(5).align_y(Alignment::Center);
+                for (i, key) in keys.iter().enumerate() {
+                    if i > 0 {
+                        caps = caps.push(text("+").size(12).class(white(0.5)));
+                    }
+                    let cap = container(
+                        text(key.clone()).size(13).font(cosmic::font::semibold()).class(white(0.95)),
+                    )
+                    .padding([3, 9])
+                    .style(move |_| container::Style {
+                        background: Some(Color::from_rgba(1.0, 1.0, 1.0, 0.10 * alpha).into()),
+                        border: Border {
+                            color: Color::from_rgba(1.0, 1.0, 1.0, 0.30 * alpha),
+                            width: 1.0,
+                            radius: 6.0.into(),
+                        },
+                        shadow: Shadow {
+                            color: Color::from_rgba(0.0, 0.0, 0.0, 0.5 * alpha),
+                            offset: Vector::new(0.0, 2.0),
+                            blur_radius: 0.0,
+                        },
+                        ..Default::default()
+                    });
+                    caps = caps.push(cap);
+                }
+                caps.into()
+            }
+            Keyboard::Text(typed) => {
+                let shown = match typed.char_indices().rev().nth(39) {
+                    Some((i, _)) => format!("…{}", &typed[i..]),
+                    None => typed.clone(),
+                };
+                let blink = if (age * 2.5) as u32 % 2 == 0 { 1.0 } else { 0.0 };
+                let caret = container(Space::new().width(2).height(15)).style(move |_| {
+                    container::Style {
+                        background: Some(with_alpha(color, blink * alpha).into()),
+                        ..Default::default()
+                    }
+                });
+                row![
+                    text("⌨").size(14).class(white(0.7)),
+                    row![text(shown).size(13).class(white(0.95)), caret].align_y(Alignment::Center),
+                ]
+                .spacing(8)
+                .align_y(Alignment::Center)
+                .into()
+            }
+        };
+
+        Some(
+            container(content)
+                .padding([6, 10])
+                .max_width(420)
+                .style(move |_| container::Style {
+                    background: Some(Color::from_rgba(0.09, 0.09, 0.11, 0.88 * alpha).into()),
+                    border: Border {
+                        color: with_alpha(color, 0.55 * alpha),
+                        width: 1.0,
+                        radius: 10.0.into(),
+                    },
+                    shadow: Shadow {
+                        color: Color::from_rgba(0.0, 0.0, 0.0, 0.35 * alpha),
+                        offset: Vector::new(0.0, 4.0),
+                        blur_radius: 16.0,
+                    },
+                    ..Default::default()
+                })
+                .into(),
+        )
+    }
+
     fn pill(&self, color: Color, alpha: f32) -> Element<'_, Msg> {
-        // Slow breathing dot: the only element that moves while idle.
-        let breath = 0.65 + 0.35 * (self.shown_at.elapsed().as_secs_f32() * PI).sin().abs();
+        let breath = if self.settling() {
+            0.65 + 0.35 * (self.last_action.elapsed().as_secs_f32() * PI).sin().abs()
+        } else {
+            1.0
+        };
         let dot = container(Space::new().width(8).height(8)).style(move |_| container::Style {
             background: Some(with_alpha(color, breath * alpha).into()),
             border: Border {
@@ -387,6 +497,7 @@ impl cosmic::Application for App {
             cursor: None,
             glide: None,
             pulse: None,
+            keyboard: None,
             last_action: Instant::now(),
             shown_at: Instant::now(),
             fading: None,
@@ -424,8 +535,15 @@ impl cosmic::Application for App {
         });
         let mut subs = vec![socket_sub(), outputs];
         if self.visible() {
-            let busy = self.glide.is_some() || self.pulse.is_some() || self.fading.is_some();
-            let period = if busy { 16 } else { 50 };
+            let busy = self.settling()
+                || self.glide.is_some()
+                || self.pulse.is_some()
+                || self.fading.is_some()
+                || self.keyboard.as_ref().is_some_and(|(at, _)| {
+                    let age = at.elapsed().as_secs_f32();
+                    age < 0.12 || age > KEYS_SHOWN - 0.3
+                });
+            let period = if busy { 16 } else { 250 };
             subs.push(iced::time::every(Duration::from_millis(period)).map(|_| Msg::Tick));
         }
         Subscription::batch(subs)
@@ -465,9 +583,10 @@ impl cosmic::Application for App {
         if let Some((cx, cy)) = cursor
             && output.contains((cx, cy))
         {
-            // Pendulum sway around the tip while resting, as in Codex.
-            let sway = if self.glide.is_none() {
-                0.07 * (self.shown_at.elapsed().as_secs_f32() * 2.4).sin()
+            // Damped pendulum sway around the tip after landing, as in Codex.
+            let t = self.last_action.elapsed().as_secs_f32();
+            let sway = if self.glide.is_none() && self.settling() {
+                0.07 * (t * 5.0).sin() * (-t / 0.7).exp()
             } else {
                 0.0
             };
@@ -492,12 +611,16 @@ impl cosmic::Application for App {
             None => self.surfaces.get(&id) == self.surfaces.values().min(),
         };
         if pill_here {
-            layers.push(
-                container(self.pill(color, alpha))
-                    .center_x(Length::Fill)
-                    .padding(iced::padding::top(42))
-                    .into(),
-            );
+            let mut top = column![self.pill(color, alpha)].spacing(10).align_x(Alignment::Center);
+            match (cursor, self.keyboard_bubble(color, alpha)) {
+                // Keystrokes go to the focused field, usually where the cursor last clicked.
+                (Some((cx, cy)), Some(bubble)) => {
+                    layers.push(pin(bubble).x(cx - output.x + 18.0).y(cy - output.y + 24.0).into());
+                }
+                (None, Some(bubble)) => top = top.push(bubble),
+                _ => {}
+            }
+            layers.push(container(top).center_x(Length::Fill).padding(iced::padding::top(42)).into());
         }
 
         stack(layers).into()

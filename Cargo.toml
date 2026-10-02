@@ -12,4 +12,4 @@ tokio = { version = "1", features = ["net"] }
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic"
 default-features = false
-features = ["applet", "tokio", "wayland"]
+features = ["applet", "tokio", "wayland", "wgpu"]

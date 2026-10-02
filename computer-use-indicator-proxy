@@ -40,8 +40,6 @@ GLIDE = 0.45  # overlay MAX_GLIDE plus a frame: the cursor lands before the clic
 
 def label(name, args):
     text = ACT.get(name) or OBSERVE.get(name) or name
-    if name == "press_key" and args.get("key"):
-        text += f" {args['key']}"
     return text
 
 
@@ -64,6 +62,11 @@ class Indicator:
         # Window-relative coordinates cannot be placed on the desktop.
         if not args.get("relative") and isinstance(x, (int, float)) and isinstance(y, (int, float)):
             event["x"], event["y"] = x, y
+        if name == "press_key" and isinstance(args.get("key"), str):
+            event["keys"] = [k for k in args["key"].split("+") if k]
+        typed = args.get("text") if name == "type_text" else args.get("value") if name == "set_value" else None
+        if isinstance(typed, str):
+            event["text"] = typed[-64:]  # a datagram, not a transcript
         if self.send(event):
             self.shown_at = time.monotonic()
             if "x" in event:

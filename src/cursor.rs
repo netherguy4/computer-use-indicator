@@ -63,7 +63,10 @@ pub fn sprite(tint: Color) -> Handle {
                 (y as f32 + 0.5) / SCALE - SIZE / 2.0,
             );
             let fog_d = (p.0 - fog_center.0).hypot(p.1 - fog_center.1);
-            let fog = 0.36 * (-(fog_d / 17.0).powi(2)).exp() + 0.09 * (-(fog_d / 38.0).powi(2)).exp();
+            // The window fades the gaussian tail to zero well inside the sprite,
+            // otherwise its square edge shows on dark backgrounds.
+            let fog = (0.36 * (-(fog_d / 17.0).powi(2)).exp() + 0.09 * (-(fog_d / 30.0).powi(2)).exp())
+                * (1.0 - smoothstep(26.0, 44.0, fog_d));
             let mut c = over([0.0; 4], fog_rgb, fog);
 
             let shadow_d = sd_polygon((p.0, p.1 - 1.4), &ARROW) - CORNER;
@@ -86,6 +89,13 @@ pub fn sprite(tint: Color) -> Handle {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fog_vanishes_before_sprite_edge() {
+        let Handle::Rgba { pixels, width, .. } = sprite(Color::WHITE) else { unreachable!() };
+        let edge = (0..width as usize).flat_map(|i| [i * 4, ((width as usize - 1) * width as usize + i) * 4]);
+        assert!(edge.map(|i| pixels[i + 3]).all(|a| a == 0), "edge pixels must be fully transparent");
+    }
 
     #[test]
     fn polygon_sign() {
